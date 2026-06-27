@@ -1,13 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════
-   25DESIGN — Cookie Consent config v2 (external, GitHub+jsDelivr)
-   แก้: dataToThirdParty=anl||adv · reload หลังเปลี่ยน consent (Wix gate ตอน render)
-        · cookie block (persist) · modal กลางจอ
+   25DESIGN — Cookie Consent config v3 (external, GitHub+jsDelivr)
+   v3: ถอด location.reload (กัน accept พัง) · box ล่างขวา · เก็บ cookie persist
+   granular GA4 = known issue (no-reload) แก้ทีหลังด้วยวิธีที่ไม่ race
    ═══════════════════════════════════════════════════════════════ */
 (function(){
   "use strict";
 
-  // reloadAfter = true เฉพาะตอน user เพิ่งเลือก/เปลี่ยน (ไม่ใช่ทุก page load — กัน loop)
-  function syncToWix(reloadAfter){
+  function syncToWix(){
     var mgr = window.consentPolicyManager;
     if (!mgr || typeof mgr.setConsentPolicy !== 'function') return;
     var anl = CookieConsent.acceptedCategory('analytics');
@@ -17,20 +16,18 @@
       functional: CookieConsent.acceptedCategory('functional'),
       analytics: anl,
       advertising: adv,
-      dataToThirdParty: anl || adv   // ★ เปิด gate 3rd-party ถ้ายอม analytics หรือ advertising
-    }).then(function(){
-      if (reloadAfter) location.reload();  // ★ Wix gate ตอน render — ต้อง reload ให้ tracker ที่เพิ่งอนุญาตยิง
+      dataToThirdParty: anl || adv
     }).catch(function(e){ console.warn('[cc->wix]', e); });
   }
 
   CookieConsent.run({
     guiOptions: {
-      consentModal:    { layout:'box', position:'middle center', equalWeightButtons:true, flipButtons:false },
-      preferencesModal:{ layout:'box', equalWeightButtons:true }
+      consentModal:    { layout:'box', position:'bottom right', equalWeightButtons:true, flipButtons:false },
+      preferencesModal:{ layout:'box', position:'bottom right', equalWeightButtons:true }
     },
-    disablePageInteraction: true,   // ★ overlay + กลางจอ (สไตล์ Consent Studio)
+    disablePageInteraction: false,
 
-    cookie: {                       // ★ กำหนดชัด → persist ทุก flow (กัน banner โผล่ซ้ำ)
+    cookie: {
       name: 'cc_cookie',
       domain: location.hostname,
       path: '/',
@@ -51,7 +48,7 @@
         th: {
           consentModal: {
             title: 'เราใส่ใจข้อมูลของคุณ',
-            description: 'เว็บไซต์นี้ใช้คุกกี้เพื่อให้การใช้งานราบรื่นและช่วยพัฒนาบริการของเรา คุณเลือกได้ว่าจะอนุญาตคุกกี้ประเภทใด และเปลี่ยนใจได้ทุกเมื่อ',
+            description: 'เว็บไซต์นี้ใช้คุกกี้เพื่อให้การใช้งานราบรื่นและช่วยพัฒนาบริการของเรา คุณเลือกได้ว่าจะอนุญาตคุกกี้ประเภทใด',
             acceptAllBtn: 'ยอมรับทั้งหมด',
             acceptNecessaryBtn: 'ปฏิเสธทั้งหมด',
             showPreferencesBtn: 'ตั้งค่า',
@@ -64,9 +61,9 @@
             savePreferencesBtn: 'บันทึกการตั้งค่า',
             closeIconLabel: 'ปิด',
             sections: [
-              { title:'การใช้คุกกี้', description:'เราใช้คุกกี้เพื่อมอบประสบการณ์ที่ดีที่สุด คุณเลือกเปิด/ปิดแต่ละประเภทได้ตามต้องการ' },
+              { title:'การใช้คุกกี้', description:'เราใช้คุกกี้เพื่อมอบประสบการณ์ที่ดีที่สุด คุณเลือกเปิด/ปิดแต่ละประเภทได้' },
               { title:'คุกกี้จำเป็น', description:'จำเป็นต่อการทำงานพื้นฐานของเว็บไซต์ ไม่สามารถปิดได้', linkedCategory:'necessary' },
-              { title:'คุกกี้การทำงาน', description:'จดจำการตั้งค่าของคุณ เช่น ภาษา เพื่อประสบการณ์ที่ดีขึ้น', linkedCategory:'functional' },
+              { title:'คุกกี้การทำงาน', description:'จดจำการตั้งค่าของคุณ เช่น ภาษา', linkedCategory:'functional' },
               { title:'คุกกี้วิเคราะห์', description:'ช่วยให้เราเข้าใจการใช้งานเว็บไซต์ เพื่อปรับปรุงให้ดีขึ้น', linkedCategory:'analytics' },
               { title:'คุกกี้การตลาด', description:'ใช้แสดงเนื้อหาและโฆษณาที่ตรงกับความสนใจของคุณ', linkedCategory:'advertising' },
               { title:'ติดต่อเรา', description:'หากมีคำถามเรื่องความเป็นส่วนตัว ติดต่อ <a href="mailto:25designservice@gmail.com">25designservice@gmail.com</a>' }
@@ -76,8 +73,8 @@
       }
     },
 
-    onFirstConsent: function(){ syncToWix(true);  },  // user เลือกครั้งแรก → reload
-    onConsent:      function(){ syncToWix(false); },  // ทุก page load → set เฉยๆ (กัน loop)
-    onChange:       function(){ syncToWix(true);  }   // user เปลี่ยน preference → reload
+    onFirstConsent: syncToWix,
+    onConsent:      syncToWix,
+    onChange:       syncToWix
   });
 })();
