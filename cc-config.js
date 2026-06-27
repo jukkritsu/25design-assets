@@ -1,12 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   25DESIGN — Cookie Consent config (external, host บน GitHub+jsDelivr)
-   UI = vanilla-cookieconsent · gate จริง = Wix consentPolicyManager
-   แก้ไฟล์นี้ใน GitHub → push → (purge jsDelivr cache ถ้า pin @latest)
+   25DESIGN — Cookie Consent config v2 (external, GitHub+jsDelivr)
+   แก้: dataToThirdParty=anl||adv · reload หลังเปลี่ยน consent (Wix gate ตอน render)
+        · cookie block (persist) · modal กลางจอ
    ═══════════════════════════════════════════════════════════════ */
 (function(){
   "use strict";
 
-  function syncToWix(){
+  // reloadAfter = true เฉพาะตอน user เพิ่งเลือก/เปลี่ยน (ไม่ใช่ทุก page load — กัน loop)
+  function syncToWix(reloadAfter){
     var mgr = window.consentPolicyManager;
     if (!mgr || typeof mgr.setConsentPolicy !== 'function') return;
     var anl = CookieConsent.acceptedCategory('analytics');
@@ -16,22 +17,34 @@
       functional: CookieConsent.acceptedCategory('functional'),
       analytics: anl,
       advertising: adv,
-      dataToThirdParty: anl || adv
+      dataToThirdParty: anl || adv   // ★ เปิด gate 3rd-party ถ้ายอม analytics หรือ advertising
+    }).then(function(){
+      if (reloadAfter) location.reload();  // ★ Wix gate ตอน render — ต้อง reload ให้ tracker ที่เพิ่งอนุญาตยิง
     }).catch(function(e){ console.warn('[cc->wix]', e); });
   }
 
   CookieConsent.run({
     guiOptions: {
-      consentModal: { layout:'box', position:'bottom right', equalWeightButtons:true, flipButtons:false },
-      preferencesModal: { layout:'box', equalWeightButtons:true }
+      consentModal:    { layout:'box', position:'middle center', equalWeightButtons:true, flipButtons:false },
+      preferencesModal:{ layout:'box', equalWeightButtons:true }
     },
-    disablePageInteraction: false,
+    disablePageInteraction: true,   // ★ overlay + กลางจอ (สไตล์ Consent Studio)
+
+    cookie: {                       // ★ กำหนดชัด → persist ทุก flow (กัน banner โผล่ซ้ำ)
+      name: 'cc_cookie',
+      domain: location.hostname,
+      path: '/',
+      sameSite: 'Lax',
+      expiresAfterDays: 182
+    },
+
     categories: {
-      necessary: { enabled:true, readOnly:true },
+      necessary:  { enabled:true, readOnly:true },
       functional: {},
-      analytics: {},
-      advertising: {}
+      analytics:  {},
+      advertising:{}
     },
+
     language: {
       default: 'th',
       translations: {
@@ -62,10 +75,9 @@
         }
       }
     },
-    onFirstConsent: syncToWix,
-    onConsent: syncToWix,
-    onChange: syncToWix
-  });
 
-  setTimeout(function(){ if (CookieConsent.validConsent()) syncToWix(); }, 1200);
+    onFirstConsent: function(){ syncToWix(true);  },  // user เลือกครั้งแรก → reload
+    onConsent:      function(){ syncToWix(false); },  // ทุก page load → set เฉยๆ (กัน loop)
+    onChange:       function(){ syncToWix(true);  }   // user เปลี่ยน preference → reload
+  });
 })();
