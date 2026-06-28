@@ -29,10 +29,9 @@
 
     cookie: {
       name: 'cc_cookie',
-      domain: location.hostname,
       path: '/',
       sameSite: 'Lax',
-      expiresAfterDays: 182
+      expiresAfterDays: 365
     },
 
     categories: {
